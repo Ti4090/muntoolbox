@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Giriş - MUN Toolkit</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  body { display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:var(--landing-gradient,linear-gradient(135deg,#f4f4f4,#eef)); font-family:var(--font-primary, Inter, sans-serif); }
+  .card { background:var(--bg-elevated,#fff);padding:28px;border-radius:12px;box-shadow:0 12px 30px rgba(2,6,23,0.08);width:420px;max-width:94%; }
+  .brand { font-family:var(--font-heading,'Montserrat');font-size:20px;margin-bottom:4px;color:var(--text-primary); }
+  .muted { color:var(--text-secondary,#666);font-size:13px;margin-bottom:14px; }
+  label { display:block;font-size:13px;color:var(--text-secondary);margin-bottom:6px; }
+  .field { margin-bottom:12px; }
+  input[type="text"], input[type="password"] { width:100%;padding:12px;border-radius:8px;border:1px solid var(--border-color,#e2e8f0);background:var(--bg-elevated);color:var(--text-primary); }
+  .actions { display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:6px; }
+  .hint { font-size:12px;color:var(--text-tertiary,#888);margin-top:12px;text-align:left; }
+  .brand-row { display:flex;align-items:center;gap:12px;margin-bottom:12px; }
+  .logo { width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,#3b82f6,#06b6d4);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-family:var(--font-heading); }
+  .secondary { font-size:13px;color:var(--text-secondary); }
+  .pw-row { display:flex;gap:8px;align-items:center; }
+  .small { font-size:12px;color:var(--text-tertiary); }
+</style>
+</head>
+<body>
+  <div class="card">
+      <div class="brand-row">
+        <div class="logo">MT</div>
+        <div>
+          <div class="brand">MUN Toolkit</div>
+          <div class="secondary">Yetkili kullanıcı girişi</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="username">Kullanıcı adı</label>
+        <input id="username" type="text" placeholder="Kullanıcı adı" autocapitalize="off" autocomplete="username" aria-label="Kullanıcı adı">
+      </div>
+
+      <div class="field">
+        <label for="password">Şifre</label>
+        <div class="pw-row">
+          <input id="password" type="password" placeholder="Şifre" autocomplete="current-password" aria-label="Şifre">
+          <button id="togglePw" class="clear-btn" style="padding:8px 10px;">👁</button>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        <label style="display:flex;align-items:center;gap:8px;"><input id="remember" type="checkbox"> Beni Hatırla</label>
+      </div>
+
+      <div class="actions">
+        <div id="message" class="hint"></div>
+        <button id="login" class="download-btn">Giriş</button>
+      </div>
+      <div id="unlockArea" style="display:none;margin-top:10px;align-items:center;gap:8px;">
+        <input id="unlockCode" type="text" placeholder="Kilit açma kodu" style="padding:8px;border-radius:8px;border:1px solid var(--border-color,#e2e8f0);width:140px;"> 
+        <button id="unlockBtn" class="download-btn">Aç</button>
+      </div>
+      <div id="debugArea" style="display:none;margin-top:12px;font-size:12px;color:#333;background:#f8f8f8;padding:8px;border-radius:8px;">
+        <div><strong>DEBUG</strong> (sadece yerel/test için)</div>
+        <div id="decodedList" style="margin-top:6px;"></div>
+        <div id="enteredB64" style="margin-top:6px;color:#555;"></div>
+        <button id="whyFailBtn" style="margin-top:8px;padding:6px 12px;border-radius:6px;background:#eee;border:1px solid #ccc;cursor:pointer;">Neden başarısız?</button>
+        <div id="failReason" style="margin-top:8px;color:#c00;"></div>
+      </div>
+
+
+<script>
+// Allowed credentials (base64):
+const users = [
+  'aGFtaXR0aTQwOTA6YW5hbmFzMTQ1MzIx',
+  'aWxlcmllbmdsaXNoY2x1YnM6RmE3I3FMOXYhWnhSMnNLcA==',
+  'cmVjZXBtZXJ0Y2xrOlIzYzNwbTNydA==' // recepmertclk : R3c3pm3rt
+];
+
+// Prepared decoded user objects for robust matching
+const decodedUsers = users.map(s => {
+  try {
+    const plain = atob(s);
+    const sepIndex = plain.indexOf(':');
+    if (sepIndex === -1) return null;
+    const rawUser = plain.slice(0, sepIndex);
+    const rawPass = plain.slice(sepIndex+1);
+    // normalized variants for robust comparison
+    const normUser = (rawUser || '').trim().normalize('NFKC');
+    const normPass = (rawPass || '').trim().normalize('NFKC');
+    return { raw: s, username: rawUser, password: rawPass, nuser: normUser, npass: normPass };
+  } catch(e){ return null; }
+}).filter(Boolean);
+
+// DEBUG flag (same logic as debug UI): enable via ?debug=1 or localStorage.loginDebug='1'
+let DEBUG = false;
+try { const u = new URL(window.location.href); if (u.searchParams.get('debug') === '1') DEBUG = true; } catch(e){}
+if (localStorage.getItem('loginDebug') === '1') DEBUG = true;
+const maxAttempts = 5;
+let attempts = parseInt(sessionStorage.getItem('loginAttempts')||'0',10);
+let lockTimestamp = parseInt(sessionStorage.getItem('lockTimestamp')||'0',10);
+
+function normalizeInput(s){ return (s||'').trim().normalize('NFKC'); }
+
+function check(u,p){
+  try {
+    const nu = normalizeInput(u);
+    const np = normalizeInput(p);
+    for (const it of decodedUsers) {
+      if (!it) continue;
+      // compare normalized username case-insensitively and password exactly
+      if (it.nuser.toLowerCase() === nu.toLowerCase() && it.npass === np) {
+        if (DEBUG) console.log('login: matched user', it.username);
+        return true;
+      }
+    }
+    if (DEBUG) console.log('login: no match', {enteredUser: nu, enteredPass: np, decodedUsers});
+    return false;
+  } catch(e){ if (DEBUG) console.error(e); return false; }
+}
+
+// Password reveal toggle
+const pwInput = document.getElementById('password');
+const toggleBtn = document.getElementById('togglePw');
+if (toggleBtn && pwInput) {
+  toggleBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    const isHidden = pwInput.type === 'password';
+    pwInput.type = isHidden ? 'text' : 'password';
+    toggleBtn.textContent = isHidden ? '🙈' : '👁';
+    pwInput.focus();
+  });
+}
+
+// Submit on Enter
+const userInputEl = document.getElementById('username');
+if (userInputEl && pwInput) {
+  [userInputEl, pwInput].forEach(el => el.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') document.getElementById('login').click();
+  }));
+}
+
+const loginBtn = document.getElementById('login');
+const msgEl = document.getElementById('message');
+
+function updateLockState() {
+  if (attempts >= maxAttempts) {
+    // mark locked and store timestamp
+    if (!lockTimestamp) {
+      lockTimestamp = Date.now();
+      sessionStorage.setItem('lockTimestamp', lockTimestamp.toString());
+    }
+    msgEl.textContent = 'Hesap kilitlendi. 5 saniye içinde özel kodla açılabilir.';
+    const unlockArea = document.getElementById('unlockArea');
+    if (unlockArea) unlockArea.style.display = 'flex';
+    return true;
+  }
+  msgEl.textContent = '';
+  const unlockArea = document.getElementById('unlockArea');
+  if (unlockArea) unlockArea.style.display = 'none';
+  return false;
+}
+
+function resetLock() {
+  attempts = 0;
+  lockTimestamp = 0;
+  sessionStorage.setItem('loginAttempts','0');
+  sessionStorage.removeItem('lockTimestamp');
+  msgEl.textContent = '';
+}
+
+// keyboard unlock: if locked, typing sequence '4090' within 5 seconds resets lock
+let keyBuffer = '';
+let unlockWindowMs = 5000; // 5 seconds
+let unlockWindowStart = 0;
+window.addEventListener('keydown', (ev) => {
+  if (attempts < maxAttempts) return; // not locked
+  const ch = ev.key;
+  if (!/^[0-9]$/.test(ch)) return; // only digits
+  const now = Date.now();
+  if (!unlockWindowStart || now - unlockWindowStart > unlockWindowMs) {
+    // start a new window
+    unlockWindowStart = now;
+    keyBuffer = ch;
+  } else {
+    keyBuffer += ch;
+  }
+  // keep buffer short
+  if (keyBuffer.length > 10) keyBuffer = keyBuffer.slice(-10);
+  // check if buffer contains sequence
+  if (keyBuffer.endsWith('4090')) {
+    // only accept if within window
+    if (now - unlockWindowStart <= unlockWindowMs) {
+      resetLock();
+      msgEl.textContent = 'Kilit açıldı. Giriş yapabilirsiniz.';
+        const unlockArea = document.getElementById('unlockArea');
+        if (unlockArea) unlockArea.style.display = 'none';
+    }
+  }
+});
+
+loginBtn.addEventListener('click', ()=>{
+  // if already locked, show message
+  if (updateLockState()) return;
+  // normalize inputs (preserve case for username per request)
+  const u = (document.getElementById('username').value || '').trim();
+  const p = (document.getElementById('password').value || '').trim();
+  // don't count empty submissions
+  if (!u || !p) { msgEl.textContent = 'Lütfen kullanıcı adı ve şifre girin.'; return; }
+  if (check(u,p)){
+    sessionStorage.setItem('authed','1');
+    // recepmertclk için özel karşılama
+    if ((u||'').toLowerCase() === 'recepmertclk') sessionStorage.setItem('welcomeRecepMert','1');
+    resetLock();
+    window.location.href = './index.html';
+  } else {
+    if (DEBUG) {
+      try { console.log('DEBUG login attempt', { entered: {u: u.normalize('NFKC'), p: p.normalize('NFKC') }, computedB64: btoa(u+':'+p) }); } catch(e) { console.log('DEBUG b64 fail'); }
+    }
+    attempts++;
+    sessionStorage.setItem('loginAttempts', attempts.toString());
+    msgEl.textContent = `Giriş başarısız (${attempts}/${maxAttempts})`;
+    if (attempts>=maxAttempts) updateLockState();
+  }
+});
+
+// unlock area handler (manual code entry)
+const unlockBtn = document.getElementById('unlockBtn');
+if (unlockBtn) {
+  unlockBtn.addEventListener('click', () => {
+    const code = (document.getElementById('unlockCode').value || '').trim();
+    if (code === '4090') {
+      resetLock();
+      msgEl.textContent = 'Kilit manuel olarak açıldı.';
+      const unlockArea = document.getElementById('unlockArea');
+      if (unlockArea) unlockArea.style.display = 'none';
+    } else {
+      msgEl.textContent = 'Geçersiz kod.';
+    }
+  });
+}
+
+// On load, reflect lock state in the UI
+updateLockState();
+
+// Debug helper: enable with ?debug=1 or set localStorage.loginDebug='1'
+function isDebugEnabled(){
+  try { const url = new URL(window.location.href); if (url.searchParams.get('debug')==='1') return true; } catch(e){}
+  return localStorage.getItem('loginDebug') === '1';
+}
+if (isDebugEnabled()) {
+  const dbg = document.getElementById('debugArea');
+  if (dbg) dbg.style.display = 'block';
+  const listEl = document.getElementById('decodedList');
+  if (listEl) {
+    listEl.innerHTML = decodedUsers.map(u=>`• ${u.username} : ${u.password.replace(/./g,'*')}`).join('<br>');
+  }
+  const enteredB64El = document.getElementById('enteredB64');
+  const showEntered = () => {
+    const u = (document.getElementById('username').value||'');
+    const p = (document.getElementById('password').value||'');
+    try { enteredB64El.textContent = 'Computed b64: ' + btoa(u+':'+p); } catch(e){ enteredB64El.textContent = 'Computed b64: (invalid)'; }
+  };
+  [document.getElementById('username'), document.getElementById('password')].forEach(el=>{ if(el) el.addEventListener('input', showEntered); });
+}
+
+// If already authed, go to index
+if (sessionStorage.getItem('authed')==='1') window.location.href = './index.html';
+</script>
+</body>
+</html>

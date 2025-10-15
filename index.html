@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MUN Badge Generator</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts - Hussar Bold alternative (using Montserrat Bold as fallback) -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Authentication now handled on separate login.html -->
+    <!-- Main Container -->
+    <div class="app-container">
+        <!-- Top Bar -->
+        <header class="top-bar">
+            <div class="app-title">
+                <h1>MUN Badge Generator</h1>
+            </div>
+            <div class="top-bar-actions">
+                <button id="backHomeTop" class="clear-btn" title="Back to Home" style="margin-right:8px;">🏠 Home</button>
+                <button id="themeToggle" class="icon-btn" title="Toggle Dark/Light Mode">
+                    <span class="theme-icon">🌙</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Left Sidebar: Upload & Master Settings -->
+            <aside class="left-sidebar">
+                <!-- Upload Section -->
+                <section class="panel">
+                    <h2 class="panel-header">Upload Files</h2>
+                    
+                    <div class="upload-group">
+                        <label class="upload-label">Badge Template (PNG)</label>
+                        <div class="upload-zone" id="templateUploadZone">
+                            <input type="file" id="templateUpload" accept="image/png" hidden>
+                            <div class="upload-content">
+                                <span class="upload-icon">📁</span>
+                                <span class="upload-text">Click or drag PNG template</span>
+                            </div>
+                        </div>
+                        <div id="templatePreview" class="file-preview hidden"></div>
+                    </div>
+
+                    <div class="upload-group">
+                        <label class="upload-label">Participant Data (CSV)</label>
+                        <div class="upload-zone" id="csvUploadZone">
+                            <input type="file" id="csvUpload" accept=".csv" hidden>
+                            <div class="upload-content">
+                                <span class="upload-icon">📊</span>
+                                <span class="upload-text">Click or drag CSV file</span>
+                            </div>
+                        </div>
+                        <div id="csvPreview" class="file-preview hidden"></div>
+                    </div>
+
+                    <div class="upload-group">
+                        <label class="upload-label">Back Cover (Optional PNG)</label>
+                        <div class="upload-zone" id="backCoverUploadZone">
+                            <input type="file" id="backCoverUpload" accept="image/png" hidden>
+                            <div class="upload-content">
+                                <span class="upload-icon">🖼</span>
+                                <span class="upload-text">Click or drag back cover</span>
+                            </div>
+                        </div>
+                        <div id="backCoverPreview" class="file-preview hidden"></div>
+                    </div>
+
+                    <div class="upload-group">
+                        <label class="upload-label">Custom Font (Optional TTF/OTF/WOFF)</label>
+                        <div class="upload-zone" id="fontUploadZone">
+                            <input type="file" id="fontUpload" accept=".ttf,.otf,.woff,.woff2" hidden>
+                            <div class="upload-content">
+                                <span class="upload-icon">🔤</span>
+                                <span class="upload-text">Upload custom font</span>
+                            </div>
+                        </div>
+                        <div id="fontPreview" class="file-preview hidden"></div>
+                    </div>
+                </section>
+
+                <!-- Master Badge Settings -->
+                <section class="panel master-settings" id="masterSettingsPanel">
+                    <h2 class="panel-header master-header">
+                        <span>Master Badge Settings</span>
+                        <span class="subtitle">Applied to all participants</span>
+                    </h2>
+                    
+                    <div id="masterTextFields" class="text-fields-container">
+                        <!-- Dynamically generated based on CSV columns -->
+                    </div>
+                </section>
+
+                <!-- Individual Override Settings -->
+                <section class="panel override-settings hidden" id="overrideSettingsPanel">
+                    <h2 class="panel-header override-header">
+                        <span id="overrideParticipantName">Override Settings</span>
+                        <button id="clearOverrides" class="clear-btn">Clear Overrides</button>
+                    </h2>
+                    
+                    <div id="overrideTextFields" class="text-fields-container">
+                        <!-- Dynamically generated based on CSV columns -->
+                    </div>
+                </section>
+            </aside>
+
+            <!-- Center: Canvas Preview -->
+            <main class="canvas-area">
+                <div class="canvas-container">
+                    <div class="canvas-header">
+                        <h3 id="canvasTitle">Badge Preview</h3>
+                        <div class="canvas-controls">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="showGrid" checked>
+                                Show Grid
+                            </label>
+                        </div>
+                    </div>
+                    <div class="canvas-wrapper" id="canvasWrapper">
+                        <canvas id="badgeCanvas" width="600" height="900"></canvas>
+                        <div id="dragHandles" class="drag-handles-container"></div>
+                        <svg id="snapGuides" class="snap-guides"></svg>
+                    </div>
+                    <div class="canvas-info">
+                        <span id="canvasInfo">Upload template and CSV to begin</span>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Right Sidebar: Participant List -->
+            <aside class="right-sidebar">
+                <section class="panel">
+                    <h2 class="panel-header">Participants <button id="syncParticipants" class="clear-btn" style="margin-left:12px;font-size:12px;">Sync</button></h2>
+                    
+                    <div class="search-box">
+                        <input type="search" id="participantSearch" placeholder="Search participants..." class="search-input">
+                    </div>
+
+                    <div id="participantList" class="participant-list">
+                        <div class="empty-state">
+                            <span class="empty-icon">👥</span>
+                            <p>No participants loaded</p>
+                            <small>Upload a CSV file to get started</small>
+                        </div>
+                    </div>
+
+                    <div class="participant-stats hidden" id="participantStats">
+                        <span id="statsText">0 participants</span>
+                    </div>
+                </section>
+            </aside>
+        </div>
+
+        <!-- Bottom Gallery -->
+        <div class="gallery-drawer" id="galleryDrawer">
+            <div class="gallery-header">
+                <h3>
+                    <span>Badge Gallery</span>
+                    <span id="galleryCount" class="gallery-count">0 badges</span>
+                </h3>
+                <div class="gallery-actions">
+                    <button id="toggleGallery" class="icon-btn">
+                        <span class="gallery-toggle-icon">▼</span>
+                    </button>
+                </div>
+            </div>
+            <div class="gallery-content" id="galleryContent">
+                <div class="empty-state">
+                    <span class="empty-icon">🖼</span>
+                    <p>No badges generated yet</p>
+                </div>
+            </div>
+            <div class="gallery-footer" id="galleryFooter">
+                <button id="downloadAllBtn" class="download-btn" disabled>
+                    <span class="btn-icon">📦</span>
+                    Download All as ZIP
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CDN Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    
+    <!-- Main Application Script -->
+    <script src="./script.js"></script>
+    <script>
+    // Simple home/landing toggle logic
+    document.addEventListener('DOMContentLoaded', () => {
+        // Create landing view
+        const landing = document.createElement('div');
+        landing.id = 'landingView';
+        landing.className = 'panel';
+        landing.style.maxWidth = '880px';
+        landing.style.margin = '48px auto';
+        landing.style.padding = '40px';
+        landing.style.borderRadius = '12px';
+        landing.style.background = 'var(--landing-gradient)';
+        landing.innerHTML = `
+            <h1 style="font-family:var(--font-heading);font-size:28px;margin-bottom:8px;">MUN Toolkit</h1>
+            <p style="color:var(--text-secondary);margin-bottom:24px;">Hızlıca seçim yapın — rozetler veya plakartlar oluşturun.</p>
+            <div style="display:flex;gap:20px;justify-content:center;margin-top:10px;">
+                <button id="openBadges" class="download-btn" style="min-width:240px;font-size:16px;">Badges / participation documents etc.</button>
+                <button id="openPlacarts" class="download-btn" style="min-width:240px;font-size:16px;">Placarts</button>
+            </div>
+            <div style="margin-top:20px;color:var(--text-tertiary);font-size:13px;">Tema: <span id="landingThemeLabel">Light</span></div>
+        `;
+
+        document.body.insertBefore(landing, document.querySelector('.app-container'));
+
+        const app = document.querySelector('.app-container');
+        app.style.display = 'none';
+
+        document.getElementById('openBadges').addEventListener('click', () => {
+            landing.style.display = 'none';
+            app.style.display = '';
+        });
+
+        document.getElementById('openPlacarts').addEventListener('click', () => {
+            // Open placarts.html in same tab
+            window.location.href = './placarts.html';
+        });
+
+        // Back to home from top bar
+        const backTop = document.getElementById('backHomeTop');
+        backTop.addEventListener('click', () => {
+            app.style.display = 'none';
+            landing.style.display = '';
+            // Reset selection
+            AppState.currentParticipantIndex = null;
+            updateCanvasTitle();
+        });
+
+        // Mirror theme label
+        const themeLabel = document.getElementById('landingThemeLabel');
+        themeLabel.textContent = document.body.classList.contains('dark-mode') ? 'Dark' : 'Light';
+    });
+    </script>
+    <script>
+    // Redirect to login page if not authenticated
+    if (sessionStorage.getItem('authed') !== '1') {
+        window.location.href = './login.html';
+    }
+    </script>
+</body>
+</html>

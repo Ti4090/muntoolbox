@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dikey Plakart Oluşturucu (Çoklu)</title>
+<style>
+  :root {
+    --bg-primary: #f4f4f4;
+    --text-primary: #111;
+    --accent: #007bff;
+    --panel-bg: #ffffff;
+  }
+  .dark-mode {
+    --bg-primary: hsl(215,25%,12%);
+    --text-primary: #f4f4f4;
+    --accent: #58a6ff;
+    --panel-bg: hsl(215,18%,16%);
+  }
+  body {
+    font-family: sans-serif;
+    text-align: center;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    padding: 20px;
+  }
+  canvas {
+    border: 1px solid #333;
+    margin-top: 15px;
+    max-width: 90%;
+    display: none;
+  }
+  /* Custom file chooser */
+  .choose-btn {
+    display: inline-block;
+    padding: 10px 18px;
+    background: var(--accent, #007bff);
+    color: #fff;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+  input[type="file"].hidden-input { display: none; }
+  button {
+    margin-top: 10px;
+    padding: 10px 20px;
+    border: none;
+    background: #007bff;
+    color: white;
+    cursor: pointer;
+    border-radius: 6px;
+  }
+  button:hover {
+    background: #0056b3;
+  }
+  #status {
+    margin-top: 10px;
+    font-size: 14px;
+  }
+  .back-btn { background:#6c757d }
+</style>
+</head>
+<body>
+
+<!-- Login overlay (shared, checks sessionStorage) -->
+<div id="loginOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:2000;">
+  <div style="background:var(--panel-bg);padding:24px;border-radius:10px;min-width:320px;">
+    <h3 style="margin:0 0 8px 0;">Giriş Yap</h3>
+    <input id="loginUserPlacarts" placeholder="Kullanıcı adı" style="width:100%;padding:8px;margin-bottom:8px;border-radius:6px;border:1px solid #ccc;">
+    <input id="loginPassPlacarts" placeholder="Şifre" type="password" style="width:100%;padding:8px;margin-bottom:8px;border-radius:6px;border:1px solid #ccc;">
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button id="loginBtnPlacarts" class="download-btn">Giriş</button>
+    </div>
+    <div id="loginMsgPlacarts" style="color:var(--danger);margin-top:8px;"></div>
+  </div>
+</div>
+
+<header style="display:flex;align-items:center;justify-content:space-between;max-width:1200px;margin:0 auto;padding:12px 20px;">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <button id="backHomePlacarts" class="back-btn" style="padding:8px 12px;border-radius:8px;background:#6c757d;color:#fff;border:none;">🏠 Home</button>
+    <h2 style="margin:0;font-family:var(--font-heading, sans-serif);">Dikey Plakart Oluşturucu</h2>
+  </div>
+  <div>
+    <button id="themeTogglePlacarts" style="padding:8px 12px;border-radius:8px;background:var(--accent);color:#fff;border:none;">🌙</button>
+  </div>
+</header>
+
+<main style="max-width:1200px;margin:18px auto;padding:20px;background:var(--panel-bg);border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,0.06);">
+
+<h2>Dikey Plakart Oluşturucu (Çoklu)</h2>
+<p>Birden fazla yatay fotoğraf seç — sistem hepsini dikey çevirip doğru yönlü aynalayarak A4’e sığdırır.</p>
+<input type="file" id="imageInput" accept="image/*" multiple class="hidden-input">
+<label id="chooseFilesBtn" class="choose-btn" for="imageInput">Choose files</label>
+<span id="selectedCount" style="margin-left:12px;color:var(--text-primary);"></span>
+<br>
+<canvas id="canvas" width="2480" height="3508"></canvas>
+<br>
+<div style="display:flex;gap:8px;justify-content:center;align-items:center;">
+  <button id="downloadBtn">PDF Olarak İndir</button>
+  <button id="downloadZipBtn">Download ZIP</button>
+  <button id="backHome" class="back-btn" style="background:#6c757d;color:#fff;">Geri</button>
+</div>
+<p id="status"></p>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- ZIP support -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script>
+// Apply theme from localStorage
+(() => {
+  const dark = localStorage.getItem('site-dark-mode') === '1';
+  if (dark) document.documentElement.classList.add('dark-mode');
+})();
+
+// Redirect to login if not authed
+if (sessionStorage.getItem('authed') !== '1') {
+  window.location.href = './login.html';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const themeBtn = document.getElementById('themeTogglePlacarts');
+  const backTop = document.getElementById('backHomePlacarts');
+  if (themeBtn) {
+    themeBtn.addEventListener('click', () => {
+      const dark = !document.documentElement.classList.contains('dark-mode');
+      document.documentElement.classList.toggle('dark-mode', dark);
+      localStorage.setItem('site-dark-mode', dark ? '1' : '0');
+    });
+  }
+  if (backTop) backTop.addEventListener('click', () => window.location.href = './index.html');
+});
+
+// Simple auth check using same encoded credentials as script.js
+(function placartsAuth() {
+  const authed = sessionStorage.getItem('authed') === '1';
+  const overlay = document.getElementById('loginOverlay');
+  const msg = document.getElementById('loginMsgPlacarts');
+  if (authed) { overlay.style.display = 'none'; return; }
+
+  // known encoded entries
+  const users = ['aGFtaXR0aTQwOTA6YW5hbmFzMTQ1MzIx', 'aWxlcmllbmdsaXNoY2x1YnM6RmE3I3FMOXYhWnhSMnNLcA=='];
+
+  function checkLocal(u, p) { return users.includes(btoa(u + ':' + p)); }
+
+  document.getElementById('loginBtnPlacarts').addEventListener('click', () => {
+    const u = document.getElementById('loginUserPlacarts').value.trim();
+    const p = document.getElementById('loginPassPlacarts').value;
+    if (checkLocal(u, p)) {
+      sessionStorage.setItem('authed', '1');
+      overlay.style.display = 'none';
+    } else {
+      msg.textContent = 'Giriş başarısız';
+    }
+  });
+})();
+const input = document.getElementById("imageInput");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const downloadBtn = document.getElementById("downloadBtn");
+const statusText = document.getElementById("status");
+const selectedCount = document.getElementById('selectedCount');
+const downloadZipBtn = document.getElementById('downloadZipBtn');
+
+let generatedImages = []; // { name, blob }
+const backHome = document.getElementById('backHome');
+
+let pdf;
+
+input.addEventListener("change", async (e) => {
+  const files = Array.from(e.target.files);
+  // reset collected images for ZIP
+  generatedImages = [];
+  if (!files.length) return;
+  selectedCount.textContent = `${files.length} selected`;
+  if (files.length > 500) {
+    alert("Maksimum 500 fotoğraf yükleyebilirsin.");
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  pdf = new jsPDF({
+    orientation: "portrait",
+    unit: "px",
+    format: [canvas.width, canvas.height]
+  });
+
+  statusText.innerText = `Toplam ${files.length} fotoğraf işleniyor...`;
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    statusText.innerText = `(${i + 1}/${files.length}) ${file.name} işleniyor...`;
+    await processImage(file, i > 0); // ilk sayfadan sonrakilere newPage eklenecek
+  }
+
+  statusText.innerText = "Tüm sayfalar hazır! Şimdi PDF'yi indirebilirsin.";
+});
+
+async function processImage(file, addPage) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Yatay fotoğrafı dikey hale getir (90 derece döndür)
+      const tempCanvas = document.createElement("canvas");
+      tempCanvas.width = img.height;
+      tempCanvas.height = img.width;
+      const tctx = tempCanvas.getContext("2d");
+      tctx.translate(img.height / 2, img.width / 2);
+      tctx.rotate(Math.PI / 2);
+      tctx.drawImage(img, -img.width / 2, -img.height / 2);
+      
+      // A4’ün yarısına sığdır
+      const halfWidth = canvas.width / 2;
+      const aspect = tempCanvas.height / tempCanvas.width;
+      const newHeight = canvas.height;
+      const newWidth = newHeight / aspect;
+      const offsetX = (halfWidth - newWidth) / 2;
+
+      // Sol taraf (normal)
+      ctx.drawImage(tempCanvas, offsetX, 0, newWidth, newHeight);
+      
+      // Sağ taraf (dikey + yatay çevrilmiş, yön korunur)
+      ctx.save();
+      ctx.translate(canvas.width, canvas.height);
+      ctx.scale(-1, -1);
+      ctx.drawImage(tempCanvas, offsetX, 0, newWidth, newHeight);
+      ctx.restore();
+
+      if (addPage) pdf.addPage();
+      pdf.addImage(canvas.toDataURL("image/jpeg", 1.0), "JPEG", 0, 0, canvas.width, canvas.height);
+      // Also collect a blob for ZIP
+      canvas.toBlob((blob) => {
+        try {
+          generatedImages.push({ name: file.name.replace(/\.[^/.]+$/, '') + '.jpg', blob });
+        } catch (e) { console.error('collect blob failed', e); }
+        resolve();
+      }, 'image/jpeg', 0.95);
+    };
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+downloadBtn.addEventListener("click", () => {
+  if (!pdf) {
+    alert("Lütfen önce fotoğrafları yükle.");
+    return;
+  }
+  pdf.save("plakartlar.pdf");
+});
+
+backHome.addEventListener('click', () => {
+  window.location.href = './index.html';
+});
+
+downloadZipBtn.addEventListener('click', async () => {
+  if (!generatedImages || generatedImages.length === 0) {
+    alert('Önce fotoğrafları işle ve PDF oluştur ya da tekrar seç.');
+    return;
+  }
+
+  const zip = new JSZip();
+  const folder = zip.folder('placarts');
+  for (let i = 0; i < generatedImages.length; i++) {
+    const img = generatedImages[i];
+    folder.file(img.name, img.blob);
+  }
+
+  const content = await zip.generateAsync({ type: 'blob' });
+  saveAs(content, 'placarts_images.zip');
+});
+</script>
+
+</body>
+</html>
