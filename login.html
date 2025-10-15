@@ -3,13 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Giriş - MUN Toolkit</title>
+<title>Login - MUN Badge Generator</title>
 <link rel="stylesheet" href="style.css">
 <style>
   body { display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:var(--landing-gradient,linear-gradient(135deg,#f4f4f4,#eef)); font-family:var(--font-primary, Inter, sans-serif); }
-  .card { background:var(--bg-elevated,#fff);padding:28px;border-radius:12px;box-shadow:0 12px 30px rgba(2,6,23,0.08);width:420px;max-width:94%; }
-  .brand { font-family:var(--font-heading,'Montserrat');font-size:20px;margin-bottom:4px;color:var(--text-primary); }
-  .muted { color:var(--text-secondary,#666);font-size:13px;margin-bottom:14px; }
+  .card { background:var(--bg-elevated,#fff);padding:clamp(20px, 5vw, 28px);border-radius:12px;box-shadow:0 12px 30px rgba(2,6,23,0.08);width:420px;max-width:92%;margin:10px; }
+  .brand { font-family:var(--font-heading,'Montserrat');font-size:clamp(18px, 5vw, 20px);margin-bottom:4px;color:var(--text-primary); }
+  .muted { color:var(--text-secondary,#666);font-size:clamp(12px, 3.5vw, 13px);margin-bottom:14px; }
+  @media screen and (max-width: 480px) {
+    input[type="text"], input[type="password"] {
+      font-size: 16px; /* Prevents zoom on iOS */
+      padding: 10px;
+    }
+    .actions {
+      flex-direction: column-reverse;
+      gap: 12px;
+    }
+    .hint {
+      text-align: center;
+    }
+  }
   label { display:block;font-size:13px;color:var(--text-secondary);margin-bottom:6px; }
   .field { margin-bottom:12px; }
   input[type="text"], input[type="password"] { width:100%;padding:12px;border-radius:8px;border:1px solid var(--border-color,#e2e8f0);background:var(--bg-elevated);color:var(--text-primary); }
@@ -209,7 +222,7 @@ loginBtn.addEventListener('click', ()=>{
     // recepmertclk için özel karşılama
     if ((u||'').toLowerCase() === 'recepmertclk') sessionStorage.setItem('welcomeRecepMert','1');
     resetLock();
-    window.location.href = './index.html';
+    window.location.href = './badges.html';
   } else {
     if (DEBUG) {
       try { console.log('DEBUG login attempt', { entered: {u: u.normalize('NFKC'), p: p.normalize('NFKC') }, computedB64: btoa(u+':'+p) }); } catch(e) { console.log('DEBUG b64 fail'); }
@@ -262,7 +275,7 @@ if (isDebugEnabled()) {
 }
 
 // If already authed, go to index
-if (sessionStorage.getItem('authed')==='1') window.location.href = './index.html';
+if (sessionStorage.getItem('authed')==='1') window.location.href = './badges.html';
 </script>
 </body>
 </html>

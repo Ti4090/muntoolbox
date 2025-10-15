@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MUN Badge Generator</title>
+    <title>Badges - MUN Badge Generator</title>
     <link rel="stylesheet" href="style.css">
     <!-- Google Fonts - Hussar Bold alternative (using Montserrat Bold as fallback) -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -205,7 +205,7 @@
             <p style="color:var(--text-secondary);margin-bottom:24px;">Hızlıca seçim yapın — rozetler veya plakartlar oluşturun.</p>
             <div style="display:flex;gap:20px;justify-content:center;margin-top:10px;">
                 <button id="openBadges" class="download-btn" style="min-width:240px;font-size:16px;">Badges / participation documents etc.</button>
-                <button id="openPlacarts" class="download-btn" style="min-width:240px;font-size:16px;">Placarts</button>
+                <button id="openPlacarts" class="download-btn" style="min-width:240px;font-size:16px;">Placards</button>
             </div>
             <div style="margin-top:20px;color:var(--text-tertiary);font-size:13px;">Tema: <span id="landingThemeLabel">Light</span></div>
         `;
@@ -221,8 +221,8 @@
         });
 
         document.getElementById('openPlacarts').addEventListener('click', () => {
-            // Open placarts.html in same tab
-            window.location.href = './placarts.html';
+            // Open placards.html in same tab
+            window.location.href = './placards.html';
         });
 
         // Back to home from top bar
